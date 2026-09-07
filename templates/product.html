@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.title }} - Product Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container header-container">
+            <div class="brand">
+                <span class="brand-icon">🛒</span>
+                <div>
+                    <h1>CantiLever Product Explorer</h1>
+                    <p class="subtitle">Product Details View</p>
+                </div>
+            </div>
+            <a href="/" class="btn btn-secondary">&larr; Back to Catalog</a>
+        </div>
+    </header>
+
+    <main class="container">
+        <article class="detail-card">
+            <div class="detail-header">
+                <div class="tags-row">
+                    <span class="category-badge">{{ product.category }}</span>
+                    <span class="rating-tag">★ {{ "%.1f"|format(product.rating) }} / 5.0</span>
+                    <span class="id-badge">ID #{{ product.id }}</span>
+                </div>
+                <h1 class="detail-title">{{ product.title }}</h1>
+            </div>
+
+            <div class="detail-price-box">
+                <span class="price-label">Price:</span>
+                <span class="price-amount">£{{ "%.2f"|format(product.price) }}</span>
+            </div>
+
+            <div class="detail-section">
+                <h2>Product Description</h2>
+                <p class="detail-description">
+                    {% if product.description %}
+                        {{ product.description }}
+                    {% else %}
+                        No detailed description available for this item.
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="detail-actions">
+                {% if product.url %}
+                    <a href="{{ product.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                        View Original Source Page &rarr;
+                    </a>
+                {% endif %}
+                <a href="/" class="btn btn-secondary">Back to Product Explorer</a>
+            </div>
+        </article>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>CantiLever Internship Task 1 &copy; 2026 E-Commerce Web Scraping & Analytics Dashboard</p>
+        </div>
+    </footer>
+</body>
+</html>

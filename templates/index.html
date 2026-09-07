@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CantiLever E-Commerce Explorer & Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container header-container">
+            <div class="brand">
+                <span class="brand-icon">🛒</span>
+                <div>
+                    <h1>CantiLever Product Explorer</h1>
+                    <p class="subtitle">E-Commerce Web Scraping, Data Analytics & Market Insights</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Key Metrics Cards -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon blue">📦</div>
+                <div class="metric-data">
+                    <span class="metric-value">{{ analytics.total_products }}</span>
+                    <span class="metric-label">Total Products</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon green">£</div>
+                <div class="metric-data">
+                    <span class="metric-value">£{{ "%.2f"|format(analytics.avg_price) }}</span>
+                    <span class="metric-label">Average Price</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon yellow">★</div>
+                <div class="metric-data">
+                    <span class="metric-value">{{ "%.1f"|format(analytics.avg_rating) }}</span>
+                    <span class="metric-label">Avg Rating (Out of 5)</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon purple">🏷️</div>
+                <div class="metric-data">
+                    <span class="metric-value">{{ analytics.total_categories }}</span>
+                    <span class="metric-label">Distinct Categories</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search & Filter Controls -->
+        <section class="filter-section">
+            <form method="GET" action="/" class="filter-form">
+                <div class="form-group search-group">
+                    <label for="q">Search Products</label>
+                    <input type="text" id="q" name="q" value="{{ search_query }}" placeholder="Search by title, category, description...">
+                </div>
+
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group price-range">
+                    <label>Price Range (£)</label>
+                    <div class="range-inputs">
+                        <input type="number" step="0.01" min="0" name="min_price" value="{{ min_price }}" placeholder="Min">
+                        <span>to</span>
+                        <input type="number" step="0.01" min="0" name="max_price" value="{{ max_price }}" placeholder="Max">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="min_rating">Min Rating</label>
+                    <select id="min_rating" name="min_rating">
+                        <option value="">Any Rating</option>
+                        <option value="4.0" {% if min_rating == '4.0' %}selected{% endif %}>4★ & above</option>
+                        <option value="3.0" {% if min_rating == '3.0' %}selected{% endif %}>3★ & above</option>
+                        <option value="2.0" {% if min_rating == '2.0' %}selected{% endif %}>2★ & above</option>
+                        <option value="1.0" {% if min_rating == '1.0' %}selected{% endif %}>1★ & above</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="sort_by">Sort By</label>
+                    <select id="sort_by" name="sort_by">
+                        <option value="">Default (ID)</option>
+                        <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="rating_desc" {% if sort_by == 'rating_desc' %}selected{% endif %}>Rating: High to Low</option>
+                        <option value="rating_asc" {% if sort_by == 'rating_asc' %}selected{% endif %}>Rating: Low to High</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <a href="/" class="btn btn-secondary">Reset</a>
+                </div>
+            </form>
+        </section>
+
+        <!-- Product Listing Grid -->
+        <section class="products-section">
+            <div class="section-header">
+                <h2>Product Catalog <span class="badge-count">{{ total_results }} items</span></h2>
+            </div>
+
+            {% if products %}
+                <div class="product-grid">
+                    {% for product in products %}
+                        <div class="product-card">
+                            <div class="card-header">
+                                <span class="category-badge">{{ product.category }}</span>
+                                <span class="rating-tag">★ {{ "%.1f"|format(product.rating) }}</span>
+                            </div>
+                            <h3 class="product-title" title="{{ product.title }}">{{ product.title }}</h3>
+                            <p class="product-description">
+                                {% if product.description %}
+                                    {{ product.description[:110] }}{% if product.description|length > 110 %}...{% endif %}
+                                {% else %}
+                                    No description available for this product item.
+                                {% endif %}
+                            </p>
+                            <div class="card-footer">
+                                <div class="product-price">£{{ "%.2f"|format(product.price) }}</div>
+                                <a href="/product/{{ product.id }}" class="btn btn-sm btn-outline">View Details</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <h3>No products found</h3>
+                    <p>Try adjusting your search keywords or clearing some filters to explore products.</p>
+                    <a href="/" class="btn btn-primary">Clear All Filters</a>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Analytics Visualizations Dashboard Section -->
+        <section class="analytics-section">
+            <div class="section-header">
+                <h2>Visual Analytics Dashboard</h2>
+                <p>Exploratory charts generated from cleaned SQLite dataset</p>
+            </div>
+            
+            <div class="charts-grid">
+                {% if charts.price_distribution %}
+                    <div class="chart-card">
+                        <h3>Price Distribution</h3>
+                        <img src="/{{ charts.price_distribution }}" alt="Price Distribution Chart" loading="lazy">
+                    </div>
+                {% endif %}
+                {% if charts.rating_distribution %}
+                    <div class="chart-card">
+                        <h3>Rating Distribution</h3>
+                        <img src="/{{ charts.rating_distribution }}" alt="Rating Distribution Chart" loading="lazy">
+                    </div>
+                {% endif %}
+                {% if charts.price_vs_rating %}
+                    <div class="chart-card">
+                        <h3>Price vs Rating</h3>
+                        <img src="/{{ charts.price_vs_rating }}" alt="Price vs Rating Chart" loading="lazy">
+                    </div>
+                {% endif %}
+                {% if charts.category_prices %}
+                    <div class="chart-card">
+                        <h3>Category Prices Analysis</h3>
+                        <img src="/{{ charts.category_prices }}" alt="Category Average Prices Chart" loading="lazy">
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>CantiLever Internship Task 1 &copy; 2026 E-Commerce Web Scraping & Analytics Dashboard</p>
+        </div>
+    </footer>
+</body>
+</html>
