@@ -199,6 +199,7 @@ def run_scraper_pipeline(limit=50, max_pages=5):
     # 4. SQLite Storage
     print("[SQLite Storage] Initializing database and inserting products...")
     database.create_database()
+    database.clear_products()
     product_dicts = cleaned_df.to_dict('records')
     database.insert_products(product_dicts)
     print(f"[SQLite Storage] Inserted/updated {len(product_dicts)} products in database.")

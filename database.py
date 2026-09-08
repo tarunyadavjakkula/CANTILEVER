@@ -29,6 +29,7 @@ def create_database():
             url TEXT UNIQUE
         )
     """)
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_products_url ON products(url)")
 
     connection.commit()
     connection.close()
