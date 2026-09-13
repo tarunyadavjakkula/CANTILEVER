@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found - CantiLever Explorer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container header-container">
+            <div class="brand">
+                <span class="brand-icon">🛒</span>
+                <div>
+                    <h1>CantiLever Product Explorer</h1>
+                    <p class="subtitle">Error Handling</p>
+                </div>
+            </div>
+            <a href="/" class="btn btn-secondary">&larr; Back to Home</a>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="error-card">
+            <div class="error-icon">⚠️</div>
+            <h2>404 - Page Not Found</h2>
+            <p>{{ message if message else 'The requested product or route could not be found.' }}</p>
+            <div class="error-actions">
+                <a href="/" class="btn btn-primary">Return to Product Catalog</a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>CantiLever Internship Task 1 &copy; 2026 E-Commerce Web Scraping & Analytics Dashboard</p>
+        </div>
+    </footer>
+</body>
+</html>

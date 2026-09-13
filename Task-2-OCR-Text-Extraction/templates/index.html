@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Text Detection & Extraction | CantiLever Task 2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="logo-icon">🔍</span>
+                <div>
+                    <h1>OCR TEXT EXTRACTOR</h1>
+                    <p class="subtitle">Extract text from images using Tesseract OCR and AI-powered Gemma OCR.</p>
+                </div>
+            </div>
+            <div class="status-badges">
+                <div class="badge {% if tesseract_available %}badge-success{% else %}badge-warning{% endif %}" id="tesseract-badge">
+                    <span class="dot"></span> Tesseract: {% if tesseract_available %}Ready{% else %}Not Found{% endif %}
+                </div>
+                <div class="badge {% if gemma_available %}badge-ai{% else %}badge-muted{% endif %}" id="gemma-badge">
+                    <span class="dot"></span> Gemma AI: {% if gemma_available %}{{ gemma_model }}{% else %}Unavailable{% endif %}
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <main class="main-content">
+            <!-- Alert Banner -->
+            <div id="alert-box" class="alert-box hidden">
+                <span class="alert-icon">⚠️</span>
+                <span id="alert-message">Alert message</span>
+                <button class="alert-close" onclick="hideAlert()">&times;</button>
+            </div>
+
+            <form id="ocr-form" class="ocr-form" onsubmit="handleExtract(event)">
+                <div class="grid-2col">
+                    <!-- Left Panel: Input & Settings -->
+                    <section class="card input-card">
+                        <h2>1. Select or Upload Image</h2>
+                        
+                        <!-- Drag & Drop Upload -->
+                        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('image-input').click()">
+                            <div class="drop-icon">📁</div>
+                            <p class="drop-text"><strong>Click to upload</strong> or drag and drop an image</p>
+                            <p class="drop-subtext">Supports PNG, JPG, JPEG, BMP, TIFF (Max 10MB)</p>
+                            <input type="file" id="image-input" name="image_file" accept=".png,.jpg,.jpeg,.bmp,.tiff,.webp" onchange="handleFileSelect(event)">
+                        </div>
+
+                        <!-- Sample Dataset Quick Selector -->
+                        <div class="sample-selector-group">
+                            <label for="sample-select">Or test with a sample dataset image:</label>
+                            <select id="sample-select" name="sample_choice" onchange="handleSampleSelect(event)">
+                                <option value="">-- Choose Sample Image --</option>
+                                {% for sample in samples %}
+                                    <option value="{{ sample }}">{{ sample }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Options Section -->
+                        <div class="options-section">
+                            <h2>2. OCR Configuration</h2>
+                            
+                            <!-- Engine Selector -->
+                            <div class="engine-selection">
+                                <label class="radio-card">
+                                    <input type="radio" name="engine" value="tesseract" checked>
+                                    <div class="radio-content">
+                                        <span class="radio-title">Tesseract OCR</span>
+                                        <span class="radio-desc">Required fast engine via pytesseract</span>
+                                    </div>
+                                </label>
+
+                                <label class="radio-card {% if not gemma_available %}disabled{% endif %}">
+                                    <input type="radio" name="engine" value="gemma" {% if not gemma_available %}disabled{% endif %}>
+                                    <div class="radio-content">
+                                        <span class="radio-title">Gemma OCR <span class="tag-ai">AI Vision</span></span>
+                                        <span class="radio-desc">{% if gemma_available %}Deep learning vision model{% else %}Gemma unavailable in local env{% endif %}</span>
+                                    </div>
+                                </label>
+
+                                <label class="radio-card {% if not gemma_available %}disabled{% endif %}">
+                                    <input type="radio" name="engine" value="compare" {% if not gemma_available %}disabled{% endif %}>
+                                    <div class="radio-content">
+                                        <span class="radio-title">Compare Both</span>
+                                        <span class="radio-desc">Side-by-side output comparison</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Preprocessing Toggle -->
+                            <div class="toggle-group">
+                                <label class="switch">
+                                    <input type="checkbox" id="use-preprocessing" name="use_preprocessing" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                                <div class="toggle-label">
+                                    <strong>Enable OpenCV Preprocessing</strong>
+                                    <span>Grayscale, resolution upscaling, denoising & binarization</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button type="submit" id="extract-btn" class="btn btn-primary btn-block">
+                            <span id="btn-text">⚡ Extract Text</span>
+                            <span id="btn-spinner" class="spinner hidden"></span>
+                        </button>
+                    </section>
+
+                    <!-- Right Panel: Image Preview & Preprocessing -->
+                    <section class="card preview-card">
+                        <h2>Image Preview</h2>
+                        <div id="preview-placeholder" class="preview-placeholder">
+                            <span>📷</span>
+                            <p>No image selected. Upload an image or select a sample dataset file to preview.</p>
+                        </div>
+                        <div id="preview-content" class="preview-content hidden">
+                            <div class="preview-tabs">
+                                <button type="button" class="tab-btn active" onclick="switchPreviewTab('original')">Original Image</button>
+                                <button type="button" class="tab-btn" onclick="switchPreviewTab('preprocessed')">Preprocessed (OpenCV)</button>
+                            </div>
+                            <div class="image-wrapper">
+                                <img id="preview-img-original" src="" alt="Original Preview" class="preview-img">
+                                <img id="preview-img-preprocessed" src="" alt="Preprocessed Preview" class="preview-img hidden">
+                            </div>
+                            <div class="file-meta" id="file-meta"></div>
+                        </div>
+                    </section>
+                </div>
+            </form>
+
+            <!-- Result Section -->
+            <section id="results-section" class="card results-card hidden">
+                <div class="results-header">
+                    <h2>Extracted Text</h2>
+                    <div class="results-actions">
+                        <button type="button" class="btn btn-secondary" onclick="copyText()">📋 Copy Text</button>
+                        <button type="button" class="btn btn-secondary" onclick="downloadText()">💾 Download .txt</button>
+                        <button type="button" class="btn btn-outline" onclick="resetForm()">🗑️ Clear</button>
+                    </div>
+                </div>
+
+                <!-- Single Output Box -->
+                <div id="single-result-box" class="result-box-container">
+                    <div class="result-toolbar">
+                        <span id="result-engine-tag" class="engine-tag">Engine: Tesseract</span>
+                        <span id="result-conf-tag" class="conf-badge">Confidence: --</span>
+                    </div>
+                    <textarea id="single-text-output" readonly class="text-output" placeholder="Extracted text will appear here..."></textarea>
+                </div>
+
+                <!-- Dual Comparison Boxes (Compare Both Mode) -->
+                <div id="compare-result-box" class="compare-grid hidden">
+                    <div class="compare-col">
+                        <div class="result-toolbar">
+                            <span class="engine-tag tag-tess">Tesseract OCR</span>
+                            <span id="compare-tess-conf" class="conf-badge">Confidence: --</span>
+                        </div>
+                        <textarea id="compare-tess-output" readonly class="text-output" placeholder="Tesseract output..."></textarea>
+                    </div>
+                    <div class="compare-col">
+                        <div class="result-toolbar">
+                            <span class="engine-tag tag-gemma">Gemma AI Vision</span>
+                            <span id="compare-gemma-status" class="conf-badge badge-ai">AI Model</span>
+                        </div>
+                        <textarea id="compare-gemma-output" readonly class="text-output" placeholder="Gemma output..."></textarea>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>CantiLever AI Internship — Task 2: Text Detection & Extraction (OCR)</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">Text copied to clipboard!</div>
+
+    <script>
+        let currentExtractedText = "";
+        let currentCompareTessText = "";
+        let currentCompareGemmaText = "";
+
+        function showAlert(msg) {
+            const box = document.getElementById('alert-box');
+            document.getElementById('alert-message').innerText = msg;
+            box.classList.remove('hidden');
+        }
+
+        function hideAlert() {
+            document.getElementById('alert-box').classList.add('hidden');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('sample-select').value = "";
+            showImagePreview(URL.createObjectURL(file), file.name, (file.size / (1024 * 1024)).toFixed(2) + " MB");
+        }
+
+        function handleSampleSelect(e) {
+            const sampleName = e.target.value;
+            if (!sampleName) return;
+
+            document.getElementById('image-input').value = "";
+            const sampleUrl = "/dataset/" + sampleName;
+            showImagePreview(sampleUrl, sampleName, "Sample Dataset Image");
+        }
+
+        function showImagePreview(url, filename, sizeStr) {
+            document.getElementById('preview-placeholder').classList.add('hidden');
+            const content = document.getElementById('preview-content');
+            content.classList.remove('hidden');
+
+            const origImg = document.getElementById('preview-img-original');
+            const prepImg = document.getElementById('preview-img-preprocessed');
+
+            origImg.src = url;
+            prepImg.src = url; // Initially same until processed
+
+            document.getElementById('file-meta').innerText = `File: ${filename} | Size: ${sizeStr}`;
+            switchPreviewTab('original');
+        }
+
+        function switchPreviewTab(tab) {
+            const origImg = document.getElementById('preview-img-original');
+            const prepImg = document.getElementById('preview-img-preprocessed');
+            const tabs = document.querySelectorAll('.tab-btn');
+
+            if (tab === 'original') {
+                origImg.classList.remove('hidden');
+                prepImg.classList.add('hidden');
+                tabs[0].classList.add('active');
+                tabs[1].classList.remove('active');
+            } else {
+                origImg.classList.add('hidden');
+                prepImg.classList.remove('hidden');
+                tabs[0].classList.remove('active');
+                tabs[1].classList.add('active');
+            }
+        }
+
+        async function handleExtract(e) {
+            e.preventDefault();
+            hideAlert();
+
+            const fileInput = document.getElementById('image-input');
+            const sampleSelect = document.getElementById('sample-select');
+
+            if (!fileInput.files.length && !sampleSelect.value) {
+                showAlert("Please choose an image file to upload or select a sample dataset image.");
+                return;
+            }
+
+            const extractBtn = document.getElementById('extract-btn');
+            const btnText = document.getElementById('btn-text');
+            const spinner = document.getElementById('btn-spinner');
+
+            extractBtn.disabled = true;
+            btnText.innerText = "Processing OCR...";
+            spinner.classList.remove('hidden');
+
+            const formData = new FormData(document.getElementById('ocr-form'));
+
+            try {
+                const response = await fetch('/extract', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    showAlert(data.error || "Failed to process image OCR.");
+                    return;
+                }
+
+                // Update preprocessed preview image if returned
+                if (data.preprocessed_image_url) {
+                    document.getElementById('preview-img-preprocessed').src = data.preprocessed_image_url;
+                }
+
+                displayResults(data);
+
+            } catch (err) {
+                showAlert("Server error during OCR extraction: " + err.message);
+            } finally {
+                extractBtn.disabled = false;
+                btnText.innerText = "⚡ Extract Text";
+                spinner.classList.add('hidden');
+            }
+        }
+
+        function displayResults(data) {
+            const resultsSection = document.getElementById('results-section');
+            const singleBox = document.getElementById('single-result-box');
+            const compareBox = document.getElementById('compare-result-box');
+
+            resultsSection.classList.remove('hidden');
+
+            if (data.engine_selected === 'compare') {
+                singleBox.classList.add('hidden');
+                compareBox.classList.remove('hidden');
+
+                // Tesseract output
+                const tess = data.tesseract || {};
+                currentCompareTessText = tess.text || tess.error || "No text returned.";
+                document.getElementById('compare-tess-output').value = currentCompareTessText;
+                document.getElementById('compare-tess-conf').innerText = tess.confidence ? `Confidence: ${tess.confidence}%` : `Status: ${tess.success ? 'Success' : 'Error'}`;
+
+                // Gemma output
+                const gemma = data.gemma || {};
+                currentCompareGemmaText = gemma.text || gemma.error || "Gemma output unavailable.";
+                document.getElementById('compare-gemma-output').value = currentCompareGemmaText;
+                document.getElementById('compare-gemma-status').innerText = gemma.success ? `Model Ready` : `Unavailable`;
+
+            } else {
+                singleBox.classList.remove('hidden');
+                compareBox.classList.add('hidden');
+
+                const res = (data.engine_selected === 'gemma') ? (data.gemma || {}) : (data.tesseract || {});
+                currentExtractedText = res.text || res.error || "No text extracted.";
+
+                document.getElementById('single-text-output').value = currentExtractedText;
+                document.getElementById('result-engine-tag').innerText = `Engine: ${res.engine || data.engine_selected.toUpperCase()}`;
+                
+                if (res.confidence !== undefined && res.confidence !== null) {
+                    document.getElementById('result-conf-tag').innerText = `Confidence: ${res.confidence}%`;
+                    document.getElementById('result-conf-tag').classList.remove('hidden');
+                } else {
+                    document.getElementById('result-conf-tag').classList.add('hidden');
+                }
+            }
+
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyText() {
+            let textToCopy = "";
+            const engineChoice = document.querySelector('input[name="engine"]:checked').value;
+
+            if (engineChoice === 'compare') {
+                textToCopy = `=== TESSERACT OCR OUTPUT ===\n${currentCompareTessText}\n\n=== GEMMA AI VISION OUTPUT ===\n${currentCompareGemmaText}`;
+            } else {
+                textToCopy = currentExtractedText;
+            }
+
+            if (!textToCopy) {
+                showAlert("No text available to copy.");
+                return;
+            }
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast("Text copied to clipboard!");
+            }).catch(err => {
+                showAlert("Failed to copy text: " + err);
+            });
+        }
+
+        function downloadText() {
+            let textToDownload = "";
+            const engineChoice = document.querySelector('input[name="engine"]:checked').value;
+
+            if (engineChoice === 'compare') {
+                textToDownload = `========================================\nTESSERACT OCR OUTPUT\n========================================\n\n${currentCompareTessText}\n\n========================================\nGEMMA AI VISION OUTPUT\n========================================\n\n${currentCompareGemmaText}`;
+            } else {
+                textToDownload = currentExtractedText;
+            }
+
+            if (!textToDownload) {
+                showAlert("No text available to download.");
+                return;
+            }
+
+            const blob = new Blob([textToDownload], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'extracted_text.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Downloaded extracted_text.txt");
+        }
+
+        function resetForm() {
+            document.getElementById('ocr-form').reset();
+            document.getElementById('image-input').value = "";
+            document.getElementById('sample-select').value = "";
+            
+            document.getElementById('preview-placeholder').classList.remove('hidden');
+            document.getElementById('preview-content').classList.add('hidden');
+            document.getElementById('results-section').classList.add('hidden');
+
+            currentExtractedText = "";
+            currentCompareTessText = "";
+            currentCompareGemmaText = "";
+            hideAlert();
+        }
+    </script>
+</body>
+</html>
